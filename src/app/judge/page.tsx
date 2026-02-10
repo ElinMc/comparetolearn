@@ -443,7 +443,7 @@ function JudgeContent() {
 
   // Judging Interface
   return (
-    <main className="min-h-screen bg-gray-100">
+    <main className="min-h-screen bg-gray-100 pb-4">
       {showProgress && <ProgressModal />}
       
       {/* Header */}
@@ -480,107 +480,124 @@ function JudgeContent() {
 
       {/* Comparison Area */}
       {pair && (
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <p className="text-center text-gray-600 mb-4">Which piece of work is better quality?</p>
+        <div className="max-w-7xl mx-auto px-4 py-4">
+          {/* Instruction - more prominent */}
+          <div className="text-center mb-4">
+            <p className="text-lg font-medium text-gray-700">Which piece of work is better quality?</p>
+            <p className="text-sm text-gray-500">👆 Tap on a letter to select it</p>
+          </div>
           
-          <div className="grid md:grid-cols-2 gap-4 mb-6">
+          {/* Two columns on desktop, stacked on mobile */}
+          <div className="grid md:grid-cols-2 gap-4 mb-4">
             {/* Option A */}
-            <button
+            <div
               onClick={() => setSelected('a')}
-              className={`bg-white rounded-xl p-6 text-left transition-all ${
+              className={`bg-white rounded-xl p-4 cursor-pointer transition-all ${
                 selected === 'a' 
                   ? 'ring-4 ring-purple-500 shadow-lg' 
                   : 'shadow-sm hover:shadow-md border-2 border-transparent hover:border-purple-200'
               }`}
             >
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-3">
                 <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full font-medium">
                   Option A
                 </span>
-                {selected === 'a' && (
-                  <span className="px-3 py-1 bg-purple-600 text-white rounded-full text-sm">
+                {selected === 'a' ? (
+                  <span className="px-3 py-1 bg-purple-600 text-white rounded-full text-sm font-medium">
                     ✓ Selected
+                  </span>
+                ) : (
+                  <span className="px-3 py-1 bg-gray-100 text-gray-500 rounded-full text-sm">
+                    Tap to select
                   </span>
                 )}
               </div>
-              <div className="prose prose-sm max-w-none max-h-80 overflow-y-auto">
-                <p className="whitespace-pre-wrap text-gray-700">{pair.a.content}</p>
+              <div className="prose prose-sm max-w-none">
+                <div className="bg-gray-50 rounded-lg p-3 max-h-64 overflow-y-auto">
+                  <p className="whitespace-pre-wrap text-gray-700 text-sm">{pair.a.content}</p>
+                </div>
               </div>
-            </button>
+            </div>
 
             {/* Option B */}
-            <button
+            <div
               onClick={() => setSelected('b')}
-              className={`bg-white rounded-xl p-6 text-left transition-all ${
+              className={`bg-white rounded-xl p-4 cursor-pointer transition-all ${
                 selected === 'b' 
                   ? 'ring-4 ring-purple-500 shadow-lg' 
                   : 'shadow-sm hover:shadow-md border-2 border-transparent hover:border-purple-200'
               }`}
             >
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-3">
                 <span className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full font-medium">
                   Option B
                 </span>
-                {selected === 'b' && (
-                  <span className="px-3 py-1 bg-purple-600 text-white rounded-full text-sm">
+                {selected === 'b' ? (
+                  <span className="px-3 py-1 bg-purple-600 text-white rounded-full text-sm font-medium">
                     ✓ Selected
+                  </span>
+                ) : (
+                  <span className="px-3 py-1 bg-gray-100 text-gray-500 rounded-full text-sm">
+                    Tap to select
                   </span>
                 )}
               </div>
-              <div className="prose prose-sm max-w-none max-h-80 overflow-y-auto">
-                <p className="whitespace-pre-wrap text-gray-700">{pair.b.content}</p>
-              </div>
-            </button>
-          </div>
-
-          {/* Reflection & Reasoning */}
-          {selected && (
-            <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
-              {/* Quick Reflections */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  What made it better? <span className="text-gray-400">(tick all that apply)</span>
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {REFLECTION_OPTIONS.map(option => (
-                    <button
-                      key={option.id}
-                      onClick={() => toggleReflection(option.id)}
-                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
-                        selectedReflections.includes(option.id)
-                          ? 'bg-purple-600 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                    >
-                      <span>{option.icon}</span>
-                      <span>{option.label}</span>
-                    </button>
-                  ))}
+              <div className="prose prose-sm max-w-none">
+                <div className="bg-gray-50 rounded-lg p-3 max-h-64 overflow-y-auto">
+                  <p className="whitespace-pre-wrap text-gray-700 text-sm">{pair.b.content}</p>
                 </div>
               </div>
-
-              {/* Written Reasoning */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Add more detail <span className="text-gray-400">(optional)</span>
-                </label>
-                <textarea
-                  value={reasoning}
-                  onChange={e => setReasoning(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  rows={2}
-                  placeholder="What specifically made you choose this one?"
-                />
-              </div>
-
-              <button
-                onClick={submitJudgement}
-                className="w-full px-6 py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors"
-              >
-                Submit & Next Comparison →
-              </button>
             </div>
-          )}
+          </div>
+
+          {/* Reflection & Submit - Always visible but disabled until selection */}
+          <div className={`bg-white rounded-xl shadow-sm p-4 transition-opacity ${!selected ? 'opacity-50' : ''}`}>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                What made it better? <span className="text-gray-400">(tick all that apply)</span>
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {REFLECTION_OPTIONS.map(option => (
+                  <button
+                    key={option.id}
+                    onClick={() => selected && toggleReflection(option.id)}
+                    disabled={!selected}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1 ${
+                      selectedReflections.includes(option.id)
+                        ? 'bg-purple-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    } ${!selected ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                  >
+                    <span>{option.icon}</span>
+                    <span className="hidden sm:inline">{option.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Written Reasoning */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Add more detail <span className="text-gray-400">(optional)</span>
+              </label>
+              <textarea
+                value={reasoning}
+                onChange={e => setReasoning(e.target.value)}
+                disabled={!selected}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                rows={2}
+                placeholder={selected ? "What specifically made you choose this one?" : "Select an option first..."}
+              />
+            </div>
+
+            <button
+              onClick={submitJudgement}
+              disabled={!selected}
+              className="w-full px-6 py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {selected ? 'Submit & Next Comparison →' : 'Select an option above to continue'}
+            </button>
+          </div>
         </div>
       )}
     </main>
