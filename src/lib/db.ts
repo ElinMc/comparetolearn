@@ -1,7 +1,6 @@
 import { SEED_TASK, SEED_ARTEFACTS } from './seed-data';
 
 // In-memory storage that works on Vercel (serverless)
-// Note: Data resets between deployments but persists during a single session
 
 interface Task {
   id: string;
@@ -11,6 +10,11 @@ interface Task {
   description: string;
   created_at: string;
   created_by: string;
+  // Teacher configuration options
+  showReflections?: boolean;
+  showReasoning?: boolean;
+  showRankingAtEnd?: boolean;
+  showGuidance?: boolean;
 }
 
 interface Artefact {
@@ -50,11 +54,19 @@ const judges: Map<string, Judge> = new Map();
 // Initialize with seed data
 function initSeedData() {
   if (tasks.size === 0) {
-    // Add the seed task
+    // Add the seed task with all settings
     tasks.set(SEED_TASK.id, {
-      ...SEED_TASK,
+      id: SEED_TASK.id,
+      title: SEED_TASK.title,
+      subject: SEED_TASK.subject,
+      criteria: SEED_TASK.criteria,
+      description: SEED_TASK.description,
       created_at: new Date().toISOString(),
-      created_by: 'teacher'
+      created_by: 'teacher',
+      showReflections: SEED_TASK.showReflections,
+      showReasoning: SEED_TASK.showReasoning,
+      showRankingAtEnd: SEED_TASK.showRankingAtEnd,
+      showGuidance: SEED_TASK.showGuidance,
     });
     
     // Add seed artefacts
@@ -73,7 +85,19 @@ function initSeedData() {
 initSeedData();
 
 // Helper functions
-export function createTask(id: string, title: string, subject: string, criteria: string, description?: string) {
+export function createTask(
+  id: string, 
+  title: string, 
+  subject: string, 
+  criteria: string, 
+  description?: string,
+  options?: {
+    showReflections?: boolean;
+    showReasoning?: boolean;
+    showRankingAtEnd?: boolean;
+    showGuidance?: boolean;
+  }
+) {
   tasks.set(id, {
     id,
     title,
@@ -81,7 +105,11 @@ export function createTask(id: string, title: string, subject: string, criteria:
     criteria,
     description: description || '',
     created_at: new Date().toISOString(),
-    created_by: 'teacher'
+    created_by: 'teacher',
+    showReflections: options?.showReflections ?? true,
+    showReasoning: options?.showReasoning ?? true,
+    showRankingAtEnd: options?.showRankingAtEnd ?? true,
+    showGuidance: options?.showGuidance ?? true,
   });
 }
 
@@ -215,9 +243,10 @@ export function getTaskStats(taskId: string) {
     appearances[j.artefact_b_id] = (appearances[j.artefact_b_id] || 0) + 1;
   });
   
-  // Calculate win rate
+  // Calculate win rate and include title
   const rankings = taskArtefacts.map(a => ({
     id: a.id,
+    title: a.title,
     wins: wins[a.id] || 0,
     appearances: appearances[a.id] || 0,
     winRate: appearances[a.id] > 0 ? (wins[a.id] || 0) / appearances[a.id] : 0

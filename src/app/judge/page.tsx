@@ -10,6 +10,10 @@ interface Task {
   subject: string;
   criteria: string;
   description: string;
+  showReflections?: boolean;
+  showReasoning?: boolean;
+  showRankingAtEnd?: boolean;
+  showGuidance?: boolean;
 }
 
 interface Artefact {
@@ -27,13 +31,21 @@ interface JudgementRecord {
   timeTaken: number;
 }
 
+interface Ranking {
+  id: string;
+  title: string;
+  wins: number;
+  appearances: number;
+  winRate: number;
+}
+
 // Default reflection options (can be customized by teachers in future)
 const REFLECTION_OPTIONS = [
-  { id: 'clarity', label: 'Clearer communication', icon: '💬' },
-  { id: 'detail', label: 'More detail/evidence', icon: '🔍' },
+  { id: 'clarity', label: 'Clearer', icon: '💬' },
+  { id: 'detail', label: 'More detail', icon: '🔍' },
   { id: 'structure', label: 'Better structure', icon: '📋' },
   { id: 'accuracy', label: 'More accurate', icon: '✓' },
-  { id: 'voice', label: 'Stronger voice/style', icon: '✍️' },
+  { id: 'voice', label: 'Stronger voice', icon: '✍️' },
   { id: 'understanding', label: 'Deeper understanding', icon: '💡' },
 ];
 
@@ -57,9 +69,16 @@ function JudgeContent() {
   const [showProgress, setShowProgress] = useState(false);
   const [calibrationScore, setCalibrationScore] = useState<number | null>(null);
   const [consensusData, setConsensusData] = useState<Record<string, number>>({});
+  const [finalRankings, setFinalRankings] = useState<Ranking[]>([]);
+  const [artefactTitles, setArtefactTitles] = useState<Record<string, string>>({});
+
+  // Task settings with defaults
+  const showReflections = selectedTask?.showReflections !== false;
+  const showReasoning = selectedTask?.showReasoning !== false;
+  const showRankingAtEnd = selectedTask?.showRankingAtEnd !== false;
+  const showGuidance = selectedTask?.showGuidance !== false;
 
   useEffect(() => {
-    // Get or create judge ID from localStorage
     let storedId = localStorage.getItem('judgeId');
     let storedName = localStorage.getItem('judgeName');
     if (!storedId) {
@@ -94,8 +113,23 @@ function JudgeContent() {
         consensus[r.id] = r.winRate;
       });
       setConsensusData(consensus);
+      setFinalRankings(data.rankings || []);
     } catch (e) {
       console.error('Failed to fetch consensus', e);
+    }
+  };
+
+  const fetchArtefactTitles = async (taskId: string) => {
+    try {
+      const res = await fetch(`/api/tasks/${taskId}/artefacts`);
+      const data = await res.json();
+      const titles: Record<string, string> = {};
+      data.artefacts?.forEach((a: { id: string; title: string }) => {
+        titles[a.id] = a.title;
+      });
+      setArtefactTitles(titles);
+    } catch (e) {
+      console.error('Failed to fetch artefacts', e);
     }
   };
 
@@ -116,7 +150,6 @@ function JudgeContent() {
     if (!judgeName.trim()) return;
     localStorage.setItem('judgeName', judgeName);
     
-    // Register judge
     await fetch('/api/judges', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -125,6 +158,7 @@ function JudgeContent() {
     
     if (selectedTask) {
       await fetchConsensus(selectedTask.id);
+      await fetchArtefactTitles(selectedTask.id);
     }
     
     setIsJudging(true);
@@ -144,6 +178,8 @@ function JudgeContent() {
       setReasoning('');
       setSelectedReflections([]);
     } else {
+      // Fetch final rankings before showing complete screen
+      await fetchConsensus(selectedTask.id);
       setComplete(true);
     }
   };
@@ -160,7 +196,6 @@ function JudgeContent() {
     const timeTaken = Date.now() - startTime;
     const chosenId = selected === 'a' ? pair.a.id : pair.b.id;
     
-    // Record locally for calibration
     const record: JudgementRecord = {
       chosenId,
       artefactAId: pair.a.id,
@@ -172,7 +207,6 @@ function JudgeContent() {
     const newHistory = [...judgementHistory, record];
     setJudgementHistory(newHistory);
     
-    // Calculate calibration
     const newCalibration = calculateCalibration(newHistory, consensusData);
     setCalibrationScore(newCalibration);
     
@@ -190,7 +224,6 @@ function JudgeContent() {
       })
     });
     
-    // Refresh consensus periodically
     if (newHistory.length % 5 === 0) {
       await fetchConsensus(selectedTask.id);
     }
@@ -199,7 +232,6 @@ function JudgeContent() {
     fetchNextPair();
   };
 
-  // Get most common reflections
   const getReflectionPatterns = () => {
     const counts: Record<string, number> = {};
     judgementHistory.forEach(j => {
@@ -303,7 +335,7 @@ function JudgeContent() {
     );
   }
 
-  // Complete
+  // Complete - with rankings!
   if (complete) {
     const patterns = getReflectionPatterns();
     
@@ -321,6 +353,45 @@ function JudgeContent() {
               You completed {judgementsCount} comparisons.
             </p>
           </div>
+
+          {/* Final Rankings */}
+          {showRankingAtEnd && finalRankings.length > 0 && (
+            <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
+              <h2 className="text-lg font-bold text-gray-900 mb-4">🏆 Final Rankings</h2>
+              <p className="text-sm text-gray-500 mb-4">Based on all judgements so far:</p>
+              <div className="space-y-2">
+                {finalRankings.map((r, index) => (
+                  <div 
+                    key={r.id} 
+                    className={`flex items-center gap-3 p-3 rounded-lg ${
+                      index === 0 ? 'bg-yellow-50 border border-yellow-200' :
+                      index === 1 ? 'bg-gray-50 border border-gray-200' :
+                      index === 2 ? 'bg-orange-50 border border-orange-200' :
+                      'bg-gray-50'
+                    }`}
+                  >
+                    <span className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
+                      index === 0 ? 'bg-yellow-400 text-yellow-900' :
+                      index === 1 ? 'bg-gray-300 text-gray-700' :
+                      index === 2 ? 'bg-orange-300 text-orange-900' :
+                      'bg-gray-200 text-gray-600'
+                    }`}>
+                      {index + 1}
+                    </span>
+                    <span className="flex-1 font-medium text-gray-900">
+                      {artefactTitles[r.id] || `Work ${index + 1}`}
+                    </span>
+                    <span className="text-sm text-gray-500">
+                      {Math.round(r.winRate * 100)}% wins
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-gray-400 mt-4 text-center">
+                Compare your intuition with the rankings — did you spot the strongest work?
+              </p>
+            </div>
+          )}
 
           {/* Growth Summary */}
           <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
@@ -359,9 +430,6 @@ function JudgeContent() {
                     );
                   })}
                 </div>
-                <p className="text-sm text-gray-500 mt-2">
-                  These are becoming part of your assessment toolkit!
-                </p>
               </div>
             )}
 
@@ -408,25 +476,6 @@ function JudgeContent() {
                   style={{ width: `${calibrationScore}%` }}
                 />
               </div>
-              <p className="text-xs text-gray-500 mt-1">
-                Alignment with peer consensus
-              </p>
-            </div>
-          )}
-
-          {getReflectionPatterns().length > 0 && (
-            <div className="p-3 bg-blue-50 rounded-lg">
-              <p className="text-sm font-medium text-gray-700 mb-2">You&apos;re noticing:</p>
-              <div className="flex flex-wrap gap-2">
-                {getReflectionPatterns().map(([id]) => {
-                  const option = REFLECTION_OPTIONS.find(o => o.id === id);
-                  return (
-                    <span key={id} className="px-2 py-1 bg-white rounded text-sm">
-                      {option?.icon} {option?.label}
-                    </span>
-                  );
-                })}
-              </div>
             </div>
           )}
         </div>
@@ -453,22 +502,14 @@ function JudgeContent() {
             <span className="text-sm text-gray-500">{selectedTask.subject}</span>
             <h1 className="font-semibold text-gray-900">{selectedTask.title}</h1>
           </div>
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setShowProgress(true)}
-              className="flex items-center gap-2 px-3 py-1.5 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors"
-            >
-              <span className="text-lg">📊</span>
-              <div className="text-left">
-                <div className="text-sm font-medium">{judgementsCount} done</div>
-                {calibrationScore !== null && (
-                  <div className="text-xs opacity-75">{calibrationScore}% calibrated</div>
-                )}
-              </div>
-            </button>
-          </div>
+          <button
+            onClick={() => setShowProgress(true)}
+            className="flex items-center gap-2 px-3 py-1.5 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors"
+          >
+            <span className="text-lg">📊</span>
+            <span className="text-sm font-medium">{judgementsCount}</span>
+          </button>
         </div>
-        {/* Criteria Bar */}
         <div className="bg-purple-50 px-4 py-2 border-t">
           <div className="max-w-7xl mx-auto">
             <span className="text-sm text-purple-700">
@@ -481,13 +522,13 @@ function JudgeContent() {
       {/* Comparison Area */}
       {pair && (
         <div className="max-w-7xl mx-auto px-4 py-4">
-          {/* Instruction - more prominent */}
+          {/* Instruction */}
           <div className="text-center mb-4">
-            <p className="text-lg font-medium text-gray-700">Which piece of work is better quality?</p>
-            <p className="text-sm text-gray-500">👆 Tap on a letter to select it</p>
+            <p className="text-lg font-medium text-gray-700">Which piece of work is better?</p>
+            <p className="text-sm text-gray-500">👆 Tap to select one</p>
           </div>
           
-          {/* Two columns on desktop, stacked on mobile */}
+          {/* Two columns */}
           <div className="grid md:grid-cols-2 gap-4 mb-4">
             {/* Option A */}
             <div
@@ -502,20 +543,14 @@ function JudgeContent() {
                 <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full font-medium">
                   Option A
                 </span>
-                {selected === 'a' ? (
+                {selected === 'a' && (
                   <span className="px-3 py-1 bg-purple-600 text-white rounded-full text-sm font-medium">
                     ✓ Selected
                   </span>
-                ) : (
-                  <span className="px-3 py-1 bg-gray-100 text-gray-500 rounded-full text-sm">
-                    Tap to select
-                  </span>
                 )}
               </div>
-              <div className="prose prose-sm max-w-none">
-                <div className="bg-gray-50 rounded-lg p-3 max-h-64 overflow-y-auto">
-                  <p className="whitespace-pre-wrap text-gray-700 text-sm">{pair.a.content}</p>
-                </div>
+              <div className="bg-gray-50 rounded-lg p-3 max-h-64 overflow-y-auto">
+                <p className="whitespace-pre-wrap text-gray-700 text-sm">{pair.a.content}</p>
               </div>
             </div>
 
@@ -532,70 +567,81 @@ function JudgeContent() {
                 <span className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full font-medium">
                   Option B
                 </span>
-                {selected === 'b' ? (
+                {selected === 'b' && (
                   <span className="px-3 py-1 bg-purple-600 text-white rounded-full text-sm font-medium">
                     ✓ Selected
                   </span>
-                ) : (
-                  <span className="px-3 py-1 bg-gray-100 text-gray-500 rounded-full text-sm">
-                    Tap to select
-                  </span>
                 )}
               </div>
-              <div className="prose prose-sm max-w-none">
-                <div className="bg-gray-50 rounded-lg p-3 max-h-64 overflow-y-auto">
-                  <p className="whitespace-pre-wrap text-gray-700 text-sm">{pair.b.content}</p>
-                </div>
+              <div className="bg-gray-50 rounded-lg p-3 max-h-64 overflow-y-auto">
+                <p className="whitespace-pre-wrap text-gray-700 text-sm">{pair.b.content}</p>
               </div>
             </div>
           </div>
 
-          {/* Reflection & Submit - Always visible but disabled until selection */}
-          <div className={`bg-white rounded-xl shadow-sm p-4 transition-opacity ${!selected ? 'opacity-50' : ''}`}>
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                What made it better? <span className="text-gray-400">(tick all that apply)</span>
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {REFLECTION_OPTIONS.map(option => (
-                  <button
-                    key={option.id}
-                    onClick={() => selected && toggleReflection(option.id)}
-                    disabled={!selected}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1 ${
-                      selectedReflections.includes(option.id)
-                        ? 'bg-purple-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    } ${!selected ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-                  >
-                    <span>{option.icon}</span>
-                    <span className="hidden sm:inline">{option.label}</span>
-                  </button>
-                ))}
-              </div>
+          {/* Guidance for uncertain students */}
+          {showGuidance && !selected && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
+              <p className="text-sm text-amber-800">
+                <strong>💡 Not sure which is better?</strong> That&apos;s okay! Trust your instinct — there&apos;s no wrong answer. 
+                Think about: Which one would you be prouder to hand in? Which one explains things more clearly? 
+                Even small differences count.
+              </p>
             </div>
+          )}
 
-            {/* Written Reasoning */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Add more detail <span className="text-gray-400">(optional)</span>
-              </label>
-              <textarea
-                value={reasoning}
-                onChange={e => setReasoning(e.target.value)}
-                disabled={!selected}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
-                rows={2}
-                placeholder={selected ? "What specifically made you choose this one?" : "Select an option first..."}
-              />
-            </div>
+          {/* Submit section - only show reflections/reasoning if enabled */}
+          <div className={`bg-white rounded-xl shadow-sm p-4 transition-opacity ${!selected ? 'opacity-50' : ''}`}>
+            
+            {/* Quick Reflections - optional */}
+            {showReflections && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  What made it better? <span className="text-gray-400">(optional)</span>
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {REFLECTION_OPTIONS.map(option => (
+                    <button
+                      key={option.id}
+                      onClick={() => selected && toggleReflection(option.id)}
+                      disabled={!selected}
+                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1 ${
+                        selectedReflections.includes(option.id)
+                          ? 'bg-purple-600 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      } ${!selected ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                    >
+                      <span>{option.icon}</span>
+                      <span className="hidden sm:inline">{option.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Written Reasoning - optional */}
+            {showReasoning && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Add more detail <span className="text-gray-400">(optional)</span>
+                </label>
+                <textarea
+                  value={reasoning}
+                  onChange={e => setReasoning(e.target.value)}
+                  disabled={!selected}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                  rows={2}
+                  placeholder={selected ? "What specifically made you choose this one?" : "Select an option first..."}
+                />
+              </div>
+            )}
 
             <button
               onClick={submitJudgement}
               disabled={!selected}
               className="w-full px-6 py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {selected ? 'Submit & Next Comparison →' : 'Select an option above to continue'}
+              {selected ? 'Next Comparison →' : 'Select an option above'}
             </button>
           </div>
         </div>

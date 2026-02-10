@@ -4,7 +4,12 @@ export const SEED_TASK = {
   title: 'Voices from the Trenches',
   subject: 'History',
   criteria: 'Historical accuracy about trench conditions; understanding of how WWI differed from previous wars; awareness of causes and context of the conflict; effective use of period-appropriate voice; clear structure',
-  description: "It's 1916. You are a soldier writing a letter home from the Western Front during World War One. Write a 400-word letter describing the conditions you're experiencing, explaining how this war is different from wars before it, and sharing your thoughts on why this war is being fought."
+  description: "It's 1916. You are a soldier writing a letter home from the Western Front during World War One. Write a 400-word letter describing the conditions you're experiencing, explaining how this war is different from wars before it, and sharing your thoughts on why this war is being fought.",
+  // Teacher configuration options
+  showReflections: true,      // Show tick-box reflections
+  showReasoning: true,        // Show text box for reasoning
+  showRankingAtEnd: true,     // Show final ranking to learner
+  showGuidance: true,         // Show "not sure?" guidance
 };
 
 export const SEED_ARTEFACTS = [
